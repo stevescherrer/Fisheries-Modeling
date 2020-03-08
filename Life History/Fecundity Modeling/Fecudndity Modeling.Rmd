@@ -1,0 +1,75 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+In this notebook we'll model fecundity as a function of weight. 
+
+We'll use data from Haddon 1994, where we have the number of eggs (counted in thousands) sampled from a number of crabs. For each crab, we also have the dry weight. We want to fit a model relating the size of an individual crab (weight) with the number of eggs they produce
+
+## Setting up workspace
+### Loading Principle Dependencies
+```{r}
+library('ggplot2')
+library('bbmle')
+```
+### Loading Data
+```{r}
+fecundity_data = data.frame(
+'size' = c(20.71, 30.35, 37.04, 39.5, 55.6, 67.9, 69.46, 84.12, 94.31, 108.47, 125.54, 132.7, 137.31, 141.34, 178.6, 224.31, 229.89),
+'eggs' = c(89.35, 82.399, 166.97, 98.324, 135.427, 240.713, 181.713, 193.161, 310.425, 213.247, 411.056, 366.567, 298.439, 529.351, 440.394, 683.008, 545.681), stringsAsFactors = FALSE)
+```
+
+#### Visualizing Data
+We'll start by plotting our data to see what it looks like
+```{r}
+ggplot(fecundity_data, aes(x = size, y = eggs)) + geom_point()
+```
+
+Visually, the relationships seems to be increasing and linear, but we'll try linear and non-linear models and see what fits better.  
+
+Note that there seems to be more variability for the largest fish, which makes sense, but also means model residuals are probably a mess. If this is true of all fecundity modeling, I can imaging a similar method to that employed by Francis (1988) to account for increasing variability at larger sizes might be in order. Presumably someone has done this already, right?
+
+### Model Fitting
+In this chunk, we fit a linear and an exponential model to our data. 
+
+If we wanted to try and incorperate diferent variability for larger fish, we could simply write our own likelihood function and use mle or mle2 to fit. 
+```{r}
+### Linear Model - fit with least squares
+fecund_mod.lm = lm(eggs ~ size, data = fecundity_data)
+  summary(fecund_mod.lm)
+  
+fecundity_data$predicted_lm = predict(fecund_mod.lm)  
+
+### Transformed exponential Model
+## We can transform our exponential model to a lienar model by taking the log of both sides
+fecund_mod.exp = lm(log(fecundity_data$eggs) ~ fecundity_data$size)
+summary(fecund_mod.exp)
+
+## Now we get our predicted values. Remember that since the model was log transformed, we need to exponentiate our predictions to get them back on the same scale as our original data.
+fecundity_data$predicted_exp = exp(predict(fecund_mod.exp))
+```
+
+Now lets plot this relationship
+```{r}
+ggplot(fecundity_data, aes(x = size, y = eggs)) + 
+  geom_point() + 
+  geom_line(aes(x = size, y = predicted_lm, color = 'red')) +
+  geom_line(aes(x = size, y = predicted_exp, color = 'blue')) + 
+  theme(legend.position="none")
+
+```
+
+## Model selection
+So which model provides the best fit to our data? We can use AIC to find out.
+
+```{r}
+## For linear model
+AIC(fecund_mod.lm)
+## for transformed exponential model
+AIC(fecund_mod.exp)
+```
+
+Therefore we conclude that the exponential model is the btter fit for our data because it's AIC value is < 2 values smaller than that of the linear model.
